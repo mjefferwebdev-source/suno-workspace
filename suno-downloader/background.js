@@ -65,11 +65,13 @@
         return false;
 
       case 'FETCH_ALL_SONGS':
-        if (!authToken) {
-          sendResponse({ error: 'No auth token captured yet. Browse your Suno workspace first, then try again.' });
-          return false;
-        }
-        fetchAllSongs()
+        refreshAuthFromTab(msg.tabId)
+          .then(() => {
+            if (!authToken) {
+              throw new Error('No auth token captured yet. Browse your Suno workspace first, then try again.');
+            }
+            return fetchAllSongs();
+          })
           .then((count) => sendResponse({ count }))
           .catch((err) => sendResponse({ error: err.message }));
         return true; // keep channel open for async response
@@ -107,6 +109,19 @@
   function isComplete(clip) {
     if (!clip.status) return true;
     return clip.status === 'complete' || clip.status === 'completed';
+  }
+
+  // ── pull fresh credentials from the specified tab ─────────────────────────
+
+  async function refreshAuthFromTab(tabId) {
+    if (!tabId) return; // no tab provided — keep whatever we have
+    try {
+      const result = await browser.tabs.sendMessage(tabId, { type: 'GET_CURRENT_AUTH' });
+      if (result && result.token) authToken = result.token;
+      if (result && result.feedBase) feedBaseUrl = result.feedBase;
+    } catch (_) {
+      // Content script not ready or tab is gone — proceed with existing values.
+    }
   }
 
   // ── fetch all songs via paginated API ──────────────────────────────────────

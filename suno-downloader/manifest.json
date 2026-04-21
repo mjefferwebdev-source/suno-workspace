@@ -5,6 +5,7 @@
   "description": "Download all songs from your Suno workspace as WAV files, one at a time.",
   "permissions": [
     "activeTab",
+    "tabs",
     "downloads",
     "storage",
     "webRequest",

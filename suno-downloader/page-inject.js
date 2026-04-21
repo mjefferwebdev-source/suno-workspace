@@ -86,4 +86,13 @@
 
     return response;
   };
+
+  // On-demand: content.js can ask for the currently captured values at any time.
+  window.addEventListener('__sunoRequestAuth', () => {
+    window.dispatchEvent(
+      new CustomEvent('__sunoAuth', {
+        detail: { token: capturedToken, feedBase: capturedFeedBase },
+      })
+    );
+  });
 })();

@@ -73,7 +73,8 @@
     errorsSec.classList.add('hidden');
 
     try {
-      const result = await browser.runtime.sendMessage({ type: 'FETCH_ALL_SONGS' });
+      const tabId = await getSunoTabId();
+      const result = await browser.runtime.sendMessage({ type: 'FETCH_ALL_SONGS', tabId });
       if (result.error) {
         statusMsg.textContent = result.error;
       } else {
@@ -89,6 +90,15 @@
     btnRefresh.disabled = false;
     btnRefresh.textContent = '↺ Load All Songs';
   });
+
+  // Returns the ID of the active Suno tab, or any Suno tab if none is active.
+  async function getSunoTabId() {
+    const tabs = await browser.tabs.query({ url: ['*://suno.com/*', '*://www.suno.com/*'] });
+    if (!tabs.length) return null;
+    // Prefer the tab that is currently active and focused.
+    const active = tabs.find((t) => t.active) || tabs[0];
+    return active.id;
+  }
 
   // ── Download All ─────────────────────────────────────────────────────────
 
