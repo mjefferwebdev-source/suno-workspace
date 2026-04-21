@@ -37,22 +37,18 @@
   }
 
   function applyStatus(s) {
-    const count = s.songCount || 0;
-    const domCount = s.domIdCount || 0;
-    const total = count || domCount;
+    const n = s.fetchedCount || 0;
 
     if (!s.hasToken) {
       statusMsg.textContent = 'Open suno.com in a tab, then click Load All Songs.';
-    } else if (count > 0) {
-      statusMsg.textContent = 'Songs detected in your library.';
-    } else if (domCount > 0) {
-      statusMsg.textContent = `${domCount} song IDs visible on page (click Load All Songs for full list).`;
+    } else if (n > 0) {
+      statusMsg.textContent = 'Library loaded — ready to download.';
     } else {
-      statusMsg.textContent = 'No songs detected yet — browse your Suno workspace.';
+      statusMsg.textContent = 'Click "Load All Songs" to fetch your workspace.';
     }
 
-    if (total > 0) {
-      songCount.textContent = total + (total === 1 ? ' song' : ' songs');
+    if (n > 0) {
+      songCount.textContent = n + (n === 1 ? ' song' : ' songs');
       btnDownload.disabled = false;
     } else {
       songCount.textContent = '';

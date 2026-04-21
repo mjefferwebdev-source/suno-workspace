@@ -13,9 +13,12 @@
   // ── state ──────────────────────────────────────────────────────────────────
 
   let authToken = null;
-  let feedBaseUrl = null;            // e.g. https://studio-api.suno.ai/api/feed/v2/
-  const songs = new Map();           // clip id → clip object (from API)
-  const domIds = new Set();          // clip ids found in DOM (no metadata yet)
+  let feedBaseUrl = null;    // captured from page; used as pagination base URL
+
+  // fetchedSongs is ONLY populated by an explicit FETCH_ALL_SONGS call.
+  // It is cleared and replaced each time the user clicks "Load All Songs",
+  // so it always reflects exactly one workspace — never a mixture of tabs.
+  let fetchedSongs = [];
 
   let isDownloading = false;
   let stopRequested = false;
@@ -38,19 +41,22 @@
         return false;
 
       case 'SONGS_CAPTURED':
+        // Passive capture from page — only record the token and feed URL so
+        // that FETCH_ALL_SONGS can use them later.  Do NOT add these songs to
+        // the download list; they may come from a different workspace tab.
         if (msg.feedBase) feedBaseUrl = msg.feedBase;
         if (msg.token) authToken = msg.token;
-        processSongData(msg.data);
         return false;
 
       case 'DOM_IDS_CAPTURED':
-        (msg.ids || []).forEach((id) => domIds.add(id));
+        // DOM scan just helps confirm a Suno page is open; token capture is
+        // what matters, so we don't accumulate these ids for downloading.
+        if (msg.token) authToken = msg.token;
         return false;
 
       case 'GET_STATUS':
         sendResponse({
-          songCount: songs.size,
-          domIdCount: domIds.size,
+          fetchedCount: fetchedSongs.length,
           hasToken: !!authToken,
           hasFeedUrl: !!feedBaseUrl,
           isDownloading,
@@ -60,7 +66,7 @@
 
       case 'FETCH_ALL_SONGS':
         if (!authToken) {
-          sendResponse({ error: 'No auth token captured yet. Browse your Suno workspace first.' });
+          sendResponse({ error: 'No auth token captured yet. Browse your Suno workspace first, then try again.' });
           return false;
         }
         fetchAllSongs()
@@ -83,45 +89,34 @@
     }
   });
 
-  // ── data processing ────────────────────────────────────────────────────────
+  // ── song title extraction ──────────────────────────────────────────────────
 
-  function processSongData(data) {
-    if (!data) return;
-
-    const clips =
-      data.clips ||
-      data.songs ||
-      data.items ||
-      (Array.isArray(data) ? data : null);
-
-    if (Array.isArray(clips)) {
-      clips.forEach((clip) => {
-        if (clip && clip.id && isComplete(clip)) {
-          songs.set(clip.id, clip);
-        }
-      });
-    }
-
-    // Single clip response
-    if (data.id && isComplete(data)) {
-      songs.set(data.id, data);
-    }
+  function getSongTitle(clip) {
+    // Suno auto-titled songs often have title = "" (empty string, falsy).
+    // Check several field names used across Suno API versions.
+    return (
+      clip.title?.trim() ||
+      clip.display_name?.trim() ||
+      clip.name?.trim() ||
+      clip.metadata?.title?.trim() ||
+      clip.metadata?.prompt?.trim()?.slice(0, 120) ||
+      clip.id
+    );
   }
 
   function isComplete(clip) {
-    // Only download finished clips (not pending / error states)
-    if (!clip.status) return true; // assume complete if no status field
+    if (!clip.status) return true;
     return clip.status === 'complete' || clip.status === 'completed';
   }
 
   // ── fetch all songs via paginated API ──────────────────────────────────────
 
   async function fetchAllSongs() {
-    songs.clear();
+    // Always start fresh — guarantees only the current workspace is included.
+    fetchedSongs = [];
+    const seen = new Set();
 
-    // Determine the base URL to call
     const base = feedBaseUrl || 'https://studio-api.suno.ai/api/feed/v2/';
-
     const pageSize = 20;
     let page = 0;
     let numTotal = null;
@@ -130,9 +125,7 @@
       const url = `${base}?page_size=${pageSize}&page=${page}`;
       let resp;
       try {
-        resp = await fetch(url, {
-          headers: { Authorization: authToken },
-        });
+        resp = await fetch(url, { headers: { Authorization: authToken } });
       } catch (err) {
         throw new Error(`Network error: ${err.message}`);
       }
@@ -145,36 +138,39 @@
       }
 
       const data = await resp.json();
-      processSongData(data);
+
+      const page_clips =
+        data.clips || data.songs || data.items ||
+        (Array.isArray(data) ? data : []);
+
+      for (const clip of page_clips) {
+        if (clip && clip.id && !seen.has(clip.id) && isComplete(clip)) {
+          seen.add(clip.id);
+          fetchedSongs.push(clip);
+        }
+      }
 
       if (numTotal === null) {
         numTotal = data.num_total_results || data.total || 0;
       }
 
-      const fetched = data.clips || data.songs || data.items || [];
-      if (fetched.length < pageSize) break;         // last page
-      if (numTotal > 0 && songs.size >= numTotal) break;
+      if (page_clips.length < pageSize) break;
+      if (numTotal > 0 && fetchedSongs.length >= numTotal) break;
 
       page++;
     }
 
-    return songs.size;
+    return fetchedSongs.length;
   }
 
   // ── download queue ─────────────────────────────────────────────────────────
 
   async function startDownload() {
     if (isDownloading) return;
+    if (fetchedSongs.length === 0) return;
 
-    // Build ordered list: API songs first, then DOM-only ids not already included
-    const list = [...songs.values()];
-    for (const id of domIds) {
-      if (!songs.has(id)) {
-        list.push({ id, title: id, audio_url: null });
-      }
-    }
-
-    if (list.length === 0) return;
+    // Snapshot the list so mid-download refreshes don't interfere.
+    const list = [...fetchedSongs];
 
     isDownloading = true;
     stopRequested = false;
@@ -191,14 +187,15 @@
     for (const song of list) {
       if (stopRequested) break;
 
+      const title = getSongTitle(song);
       progress.current++;
-      progress.currentTitle = song.title || song.id;
+      progress.currentTitle = title;
       broadcastProgress();
 
       try {
         await downloadSong(song);
       } catch (err) {
-        progress.errors.push(`"${song.title || song.id}": ${err.message}`);
+        progress.errors.push(`"${title}": ${err.message}`);
       }
     }
 
@@ -210,7 +207,7 @@
 
   async function downloadSong(song) {
     const wavUrl = buildWavUrl(song);
-    const safe = sanitizeFilename(song.title || song.id);
+    const safe = sanitizeFilename(getSongTitle(song));
 
     // Try WAV first; on failure fall back to MP3
     try {
