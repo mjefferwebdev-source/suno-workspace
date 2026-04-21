@@ -50,28 +50,4 @@
   const observer = new MutationObserver(scanDOM);
   observer.observe(document.body, { childList: true, subtree: true });
 
-  // --- on-demand: background asks this tab for its current auth + feed URL ---
-  browser.runtime.onMessage.addListener((msg) => {
-    if (msg.type === 'GET_CURRENT_AUTH') {
-      return new Promise((resolve) => {
-        const timer = setTimeout(() => {
-          window.removeEventListener('__sunoAuth', handler);
-          resolve({ token: null, feedBase: null });
-        }, 2000);
-
-        function handler(event) {
-          clearTimeout(timer);
-          window.removeEventListener('__sunoAuth', handler);
-          resolve({
-            token: event.detail.token || null,
-            feedBase: event.detail.feedBase || null,
-          });
-        }
-
-        window.addEventListener('__sunoAuth', handler);
-        // Trigger page-inject to reply with whatever it has right now.
-        window.dispatchEvent(new Event('__sunoRequestAuth'));
-      });
-    }
-  });
 })();
