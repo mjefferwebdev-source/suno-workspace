@@ -3,28 +3,22 @@
 
   const $ = (id) => document.getElementById(id);
 
-  // Views
-  const viewWorkspaces = $('view-workspaces');
-  const viewDownload   = $('view-download');
+  const statusMsg     = $('status-msg');
+  const songCount     = $('song-count');
+  const btnLoad       = $('btn-load');
+  const btnDownload   = $('btn-download');
+  const btnStop       = $('btn-stop');
+  const progressSec   = $('progress-section');
+  const progressTitle = $('progress-title');
+  const barFill       = $('bar-fill');
+  const progressSub   = $('progress-sub');
+  const doneMsg       = $('done-msg');
+  const errorsList    = $('errors-list');
 
-  // Workspace-picker elements
-  const workspaceList  = $('workspace-list');
-  const hint           = $('hint');
-
-  // Download-progress elements
-  const dlWorkspace = $('dl-workspace');
-  const dlStatus    = $('dl-status');
-  const barFill     = $('bar-fill');
-  const dlSub       = $('dl-sub');
-  const dlDone      = $('dl-done');
-  const dlErrors    = $('dl-errors');
-  const btnStop     = $('btn-stop');
-  const btnBack     = $('btn-back');
-
-  // ── bootstrap ─────────────────────────────────────────────────────────────
+  // ── boot ─────────────────────────────────────────────────────────────────
 
   browser.runtime.onMessage.addListener((msg) => {
-    if (msg.type === 'PROGRESS_UPDATE') applyProgress(msg.progress);
+    if (msg.type === 'PROGRESS_UPDATE') renderProgress(msg.progress);
   });
 
   loadStatus();
@@ -32,146 +26,66 @@
   async function loadStatus() {
     try {
       const s = await browser.runtime.sendMessage({ type: 'GET_STATUS' });
+
       if (s.isDownloading) {
-        showDownloadView(s.progress);
+        showDownloading();
+        renderProgress(s.progress);
+        return;
+      }
+
+      const n = s.fetchedCount || 0;
+      if (!s.hasToken) {
+        setStatus('Browse suno.com in a tab, then click Load All Songs.');
+      } else if (n > 0) {
+        setStatus('Songs loaded — ready to download.');
+        setCount(n);
+        btnDownload.disabled = false;
       } else {
-        showWorkspaceView(s.recentWorkspaces, s.hasToken);
+        setStatus('Click Load All Songs to fetch the workspace you are viewing.');
       }
     } catch (_) {
-      showHint('Unable to reach the extension background. Try reloading the extension in about:debugging.');
+      setStatus('Could not reach the extension background — try reloading it.');
     }
   }
 
-  // ── View: workspace picker ─────────────────────────────────────────────────
+  // ── Load All Songs ────────────────────────────────────────────────────────
 
-  function showWorkspaceView(workspaces, hasToken) {
-    viewDownload.classList.add('hidden');
-    viewWorkspaces.classList.remove('hidden');
-    workspaceList.innerHTML = '';
-    hideHint();
+  btnLoad.addEventListener('click', async () => {
+    btnLoad.disabled = true;
+    btnLoad.textContent = '⏳ Loading…';
+    setStatus('Fetching song list from Suno…');
+    setCount('');
+    btnDownload.disabled = true;
+    doneMsg.hidden = true;
+    errorsList.hidden = true;
 
-    if (!hasToken) {
-      showHint('Open <strong>suno.com</strong> in a tab and browse your workspaces — they will appear here.');
-      return;
-    }
-
-    if (!workspaces || workspaces.length === 0) {
-      showHint('No workspaces detected yet. Browse your Suno workspaces and they will appear here automatically.');
-      return;
-    }
-
-    workspaces.forEach((ws) => {
-      const btn = document.createElement('button');
-      btn.className = 'workspace-btn';
-      btn.innerHTML =
-        `<span class="ws-name">${esc(ws.name)}</span>` +
-        `<span class="ws-arrow">&#8594;</span>`;
-      btn.addEventListener('click', () => onWorkspaceChosen(ws));
-      workspaceList.appendChild(btn);
-    });
-  }
-
-  function showHint(html) {
-    hint.innerHTML = html;
-    hint.classList.remove('hidden');
-  }
-
-  function hideHint() {
-    hint.classList.add('hidden');
-    hint.innerHTML = '';
-  }
-
-  // ── Workspace chosen ──────────────────────────────────────────────────────
-
-  async function onWorkspaceChosen(ws) {
-    // Switch to download view immediately so the user sees feedback
-    showDownloadView({
-      phase: 'fetching',
-      workspaceName: ws.name,
-      currentTitle: 'Loading song list…',
-      current: 0,
-      total: 0,
-    });
-
-    const result = await browser.runtime.sendMessage({
-      type: 'CHOOSE_WORKSPACE',
-      feedBase: ws.feedBase,
-      name: ws.name,
-    });
-
-    if (result.error) {
-      dlStatus.textContent = result.error;
-      dlStatus.style.color = '#f87171';
-      btnStop.classList.add('hidden');
-      btnBack.classList.remove('hidden');
-    }
-  }
-
-  // ── View: download progress ───────────────────────────────────────────────
-
-  function showDownloadView(p) {
-    viewWorkspaces.classList.add('hidden');
-    viewDownload.classList.remove('hidden');
-    applyProgress(p);
-  }
-
-  function applyProgress(p) {
-    if (!p) return;
-
-    dlWorkspace.textContent = p.workspaceName || '';
-    dlStatus.style.color = '';
-    dlDone.classList.add('hidden');
-    dlErrors.classList.add('hidden');
-
-    switch (p.phase) {
-
-      case 'fetching':
-        dlStatus.textContent = 'Loading song list…';
-        barFill.style.width = '0%';
-        dlSub.textContent = '';
-        btnStop.classList.add('hidden');
-        btnBack.classList.add('hidden');
-        break;
-
-      case 'downloading': {
-        const pct = p.total > 0 ? (p.current / p.total) * 100 : 0;
-        barFill.style.width = pct.toFixed(1) + '%';
-        dlStatus.textContent = p.currentTitle || '…';
-        dlSub.textContent = `${p.current} of ${p.total} songs`;
-        btnStop.classList.remove('hidden');
-        btnBack.classList.add('hidden');
-
-        if (p.done || p.stopped) {
-          btnStop.classList.add('hidden');
-          btnBack.classList.remove('hidden');
-          dlDone.classList.remove('hidden');
-          if (p.stopped) {
-            dlDone.style.color = '#facc15';
-            dlDone.textContent = `⚠ Stopped after ${p.current} of ${p.total} songs.`;
-          } else {
-            dlDone.style.color = '#4ade80';
-            dlDone.textContent = `✓ All ${p.total} songs downloaded!`;
-          }
-          if (p.errors && p.errors.length) {
-            dlErrors.classList.remove('hidden');
-            dlErrors.innerHTML = p.errors.map((e) => `<div>${esc(e)}</div>`).join('');
-          }
-        }
-        break;
+    try {
+      const res = await browser.runtime.sendMessage({ type: 'FETCH_ALL_SONGS' });
+      if (res.error) {
+        setStatus(res.error);
+      } else {
+        setCount(res.count);
+        setStatus(res.count > 0 ? 'Songs loaded — ready to download.' : 'No songs found in this workspace.');
+        btnDownload.disabled = res.count === 0;
       }
-
-      case 'error':
-        dlStatus.textContent = p.currentTitle || 'An error occurred.';
-        dlStatus.style.color = '#f87171';
-        barFill.style.width = '0%';
-        dlSub.textContent = '';
-        btnStop.classList.add('hidden');
-        btnBack.classList.remove('hidden');
-        break;
+    } catch (err) {
+      setStatus('Error: ' + err.message);
     }
-  }
 
-  // ── Buttons ───────────────────────────────────────────────────────────────
+    btnLoad.disabled = false;
+    btnLoad.textContent = '↺ Load All Songs';
+  });
+
+  // ── Download All ──────────────────────────────────────────────────────────
+
+  btnDownload.addEventListener('click', async () => {
+    doneMsg.hidden = true;
+    errorsList.hidden = true;
+    await browser.runtime.sendMessage({ type: 'START_DOWNLOAD' });
+    showDownloading();
+  });
+
+  // ── Stop ──────────────────────────────────────────────────────────────────
 
   btnStop.addEventListener('click', async () => {
     btnStop.disabled = true;
@@ -179,15 +93,56 @@
     await browser.runtime.sendMessage({ type: 'STOP_DOWNLOAD' });
   });
 
-  btnBack.addEventListener('click', () => loadStatus());
+  // ── progress rendering ────────────────────────────────────────────────────
+
+  function showDownloading() {
+    progressSec.hidden = false;
+    btnDownload.hidden = true;
+    btnLoad.disabled   = true;
+    btnStop.hidden     = false;
+    btnStop.disabled   = false;
+    btnStop.textContent = '■ Stop';
+  }
+
+  function renderProgress(p) {
+    if (!p) return;
+
+    const pct = p.total > 0 ? (p.current / p.total) * 100 : 0;
+    barFill.style.width   = pct.toFixed(1) + '%';
+    progressTitle.textContent = p.currentTitle || '…';
+    progressSub.textContent   = `${p.current} of ${p.total} songs`;
+
+    if (p.done || p.stopped) {
+      progressSec.hidden  = false;
+      btnStop.hidden       = true;
+      btnDownload.hidden   = false;
+      btnDownload.disabled = false;
+      btnLoad.disabled     = false;
+
+      doneMsg.hidden = false;
+      if (p.stopped) {
+        doneMsg.style.color = '#facc15';
+        doneMsg.textContent = `⚠ Stopped after ${p.current} of ${p.total} songs.`;
+      } else {
+        doneMsg.style.color = '#4ade80';
+        doneMsg.textContent = `✓ All ${p.total} songs downloaded!`;
+      }
+
+      if (p.errors && p.errors.length) {
+        errorsList.hidden = false;
+        errorsList.innerHTML = p.errors.map((e) => `<div>${esc(e)}</div>`).join('');
+      }
+    }
+  }
 
   // ── helpers ───────────────────────────────────────────────────────────────
 
+  function setStatus(text) { statusMsg.textContent = text; }
+  function setCount(n) {
+    songCount.textContent = n === '' ? '' : `${n} song${n === 1 ? '' : 's'}`;
+  }
   function esc(s) {
-    return String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
 })();

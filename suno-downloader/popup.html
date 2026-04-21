@@ -12,32 +12,30 @@
       <h1>Suno Downloader</h1>
     </header>
 
-    <!-- ── View 1: workspace picker ── -->
-    <section id="view-workspaces">
-      <p class="view-label">Choose a workspace to download:</p>
-      <div id="workspace-list"></div>
-      <p id="hint" class="hint hidden"></p>
-    </section>
+    <div id="status-msg" class="status-msg"></div>
+    <div id="song-count" class="song-count"></div>
 
-    <!-- ── View 2: download progress ── -->
-    <section id="view-download" class="hidden">
-      <div id="dl-workspace" class="dl-workspace"></div>
+    <div class="actions">
+      <button id="btn-load"     class="btn secondary">&#8635; Load All Songs</button>
+      <button id="btn-download" class="btn primary"   disabled>&#8595; Download All as WAV</button>
+      <button id="btn-stop"     class="btn danger"    hidden>&#9632; Stop</button>
+    </div>
 
-      <div id="dl-status" class="dl-status"></div>
-
+    <div id="progress-section" hidden>
+      <div id="progress-title" class="progress-title"></div>
       <div class="bar-track">
         <div id="bar-fill" class="bar-fill"></div>
       </div>
-      <div id="dl-sub" class="dl-sub"></div>
+      <div id="progress-sub" class="progress-sub"></div>
+    </div>
 
-      <div id="dl-done" class="dl-done hidden"></div>
-      <div id="dl-errors" class="dl-errors hidden"></div>
+    <div id="done-msg"    class="done-msg"    hidden></div>
+    <div id="errors-list" class="errors-list" hidden></div>
 
-      <div class="dl-actions">
-        <button id="btn-stop" class="btn danger hidden">&#9632; Stop</button>
-        <button id="btn-back" class="btn secondary hidden">&#8592; Back to workspaces</button>
-      </div>
-    </section>
+    <p class="footer-hint">
+      Browse your Suno workspace first, then click <strong>Load All Songs</strong>.
+      Files save to <code>Downloads/suno-downloads/</code>.
+    </p>
 
   </div>
   <script src="popup.js"></script>

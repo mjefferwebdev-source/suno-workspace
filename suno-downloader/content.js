@@ -45,9 +45,17 @@
     }
   }
 
-  scanDOM();
+  // document.body is null at document_start, so wait for it before observing.
+  function setupObserver() {
+    scanDOM();
+    const observer = new MutationObserver(scanDOM);
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
 
-  const observer = new MutationObserver(scanDOM);
-  observer.observe(document.body, { childList: true, subtree: true });
+  if (document.body) {
+    setupObserver();
+  } else {
+    document.addEventListener('DOMContentLoaded', setupObserver);
+  }
 
 })();
