@@ -12,41 +12,32 @@
       <h1>Suno Downloader</h1>
     </header>
 
-    <section id="status-section">
-      <div id="status-msg">Checking…</div>
-      <div id="song-count"></div>
+    <!-- ── View 1: workspace picker ── -->
+    <section id="view-workspaces">
+      <p class="view-label">Choose a workspace to download:</p>
+      <div id="workspace-list"></div>
+      <p id="hint" class="hint hidden"></p>
     </section>
 
-    <section id="actions">
-      <button id="btn-refresh" class="btn secondary">&#8635; Load All Songs</button>
-      <button id="btn-download" class="btn primary" disabled>&#8595; Download All as WAV</button>
-      <button id="btn-stop" class="btn danger hidden">&#9632; Stop</button>
-    </section>
+    <!-- ── View 2: download progress ── -->
+    <section id="view-download" class="hidden">
+      <div id="dl-workspace" class="dl-workspace"></div>
 
-    <section id="progress-section" class="hidden">
-      <div id="progress-title"></div>
+      <div id="dl-status" class="dl-status"></div>
+
       <div class="bar-track">
         <div id="bar-fill" class="bar-fill"></div>
       </div>
-      <div id="progress-sub"></div>
-    </section>
+      <div id="dl-sub" class="dl-sub"></div>
 
-    <section id="done-section" class="hidden">
-      <div id="done-msg"></div>
-    </section>
+      <div id="dl-done" class="dl-done hidden"></div>
+      <div id="dl-errors" class="dl-errors hidden"></div>
 
-    <section id="errors-section" class="hidden">
-      <div class="errors-label">Errors:</div>
-      <div id="errors-list"></div>
+      <div class="dl-actions">
+        <button id="btn-stop" class="btn danger hidden">&#9632; Stop</button>
+        <button id="btn-back" class="btn secondary hidden">&#8592; Back to workspaces</button>
+      </div>
     </section>
-
-    <footer>
-      <p>1. Browse to <strong>suno.com</strong> and open your workspace.</p>
-      <p>2. Click <strong>Load All Songs</strong> to detect your library.</p>
-      <p>3. Click <strong>Download All</strong> — files save to <code>Downloads/suno-downloads/</code>.</p>
-      <p class="note">WAV format requires a Suno Pro or Premier subscription.<br>
-         Songs are downloaded one at a time.</p>
-    </footer>
 
   </div>
   <script src="popup.js"></script>

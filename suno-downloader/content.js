@@ -27,7 +27,7 @@
   window.addEventListener('__sunoData', (event) => {
     const { feedBase, token, data } = event.detail;
     browser.runtime
-      .sendMessage({ type: 'SONGS_CAPTURED', feedBase, token, data })
+      .sendMessage({ type: 'SONGS_CAPTURED', feedBase, token, data, pageName: document.title })
       .catch(() => {});
   });
 
