@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="container">
+
+    <header>
+      <div class="logo">&#8595;</div>
+      <h1>Suno Downloader</h1>
+    </header>
+
+    <section id="status-section">
+      <div id="status-msg">Checking…</div>
+      <div id="song-count"></div>
+    </section>
+
+    <section id="actions">
+      <button id="btn-refresh" class="btn secondary">&#8635; Load All Songs</button>
+      <button id="btn-download" class="btn primary" disabled>&#8595; Download All as WAV</button>
+      <button id="btn-stop" class="btn danger hidden">&#9632; Stop</button>
+    </section>
+
+    <section id="progress-section" class="hidden">
+      <div id="progress-title"></div>
+      <div class="bar-track">
+        <div id="bar-fill" class="bar-fill"></div>
+      </div>
+      <div id="progress-sub"></div>
+    </section>
+
+    <section id="done-section" class="hidden">
+      <div id="done-msg"></div>
+    </section>
+
+    <section id="errors-section" class="hidden">
+      <div class="errors-label">Errors:</div>
+      <div id="errors-list"></div>
+    </section>
+
+    <footer>
+      <p>1. Browse to <strong>suno.com</strong> and open your workspace.</p>
+      <p>2. Click <strong>Load All Songs</strong> to detect your library.</p>
+      <p>3. Click <strong>Download All</strong> — files save to <code>Downloads/suno-downloads/</code>.</p>
+      <p class="note">WAV format requires a Suno Pro or Premier subscription.<br>
+         Songs are downloaded one at a time.</p>
+    </footer>
+
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

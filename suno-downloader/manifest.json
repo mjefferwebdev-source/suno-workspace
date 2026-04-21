@@ -1,0 +1,42 @@
+{
+  "manifest_version": 2,
+  "name": "Suno Workspace Downloader",
+  "version": "1.0.0",
+  "description": "Download all songs from your Suno workspace as WAV files, one at a time.",
+  "permissions": [
+    "activeTab",
+    "downloads",
+    "storage",
+    "webRequest",
+    "*://suno.com/*",
+    "*://www.suno.com/*",
+    "*://studio-api.suno.ai/*",
+    "*://cdn1.suno.ai/*"
+  ],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": true
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://suno.com/*", "*://www.suno.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "browser_action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "48": "icons/icon-48.png",
+      "96": "icons/icon-96.png"
+    },
+    "default_title": "Suno Workspace Downloader"
+  },
+  "icons": {
+    "48": "icons/icon-48.png",
+    "96": "icons/icon-96.png"
+  },
+  "web_accessible_resources": [
+    "page-inject.js"
+  ]
+}
